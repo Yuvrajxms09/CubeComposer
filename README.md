@@ -10,7 +10,7 @@ CubeComposer: Spatio-Temporal Autoregressive 4K 360° Video Generation from Pers
 <p align="center">
  <a href='https://lg-li.github.io/project/cubecomposer'><img src='https://img.shields.io/badge/Project-Page-Green'></a> &nbsp;
  <a href='https://huggingface.co/TencentARC/CubeComposer'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue'></a>  &nbsp;
- <a href="https://arxiv.org/abs/xxxx"><img src="https://img.shields.io/static/v1?label=ArxivPreprint&message=CubeComposer&color=red&logo=arxiv"></a>
+ <a href="https://arxiv.org/abs/2603.04291"><img src="https://img.shields.io/static/v1?label=ArxivPreprint&message=CubeComposer&color=red&logo=arxiv"></a>
 </p>
 
 
@@ -192,7 +192,7 @@ If you find our work helpful in your research, please star this repo and cite:
 @article{li2026cubecomposer,
     title={CubeComposer: Spatio-Temporal Autoregressive 4K 360° Video Generation from Perspective Video},
     author={Li, Lingen and Wang, Guangzhi and Li, Xiaoyu and Zhang, Zhaoyang and Dou, Qi and Gu, Jinwei and Xue, Tianfan and Shan, Ying},
-    journal={arXiv preprint arXiv:2601.XXXXX},
+    journal={arXiv preprint arXiv:2603.04291},
     year={2026}
 }
 ```
