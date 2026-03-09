@@ -53,7 +53,7 @@ class WanVideoUnit_NoiseInitializer_LatentMode(PipelineUnit):
         return {"noise": noise}
 
 
-def get_model_configs(model_paths=None, model_id_with_origin_paths=None, local_model_path=None, skip_download=False):
+def get_model_configs(model_paths=None, model_id_with_origin_paths=None, local_model_path=None, skip_download=True):
     """
     Get model configs for pipeline initialization.
     
@@ -366,7 +366,7 @@ class PanoramaWanPipeline(WanVideoPipeline):
         torch_dtype: torch.dtype = torch.bfloat16,
         device: Union[str, torch.device] = "cuda",
         model_configs: list[ModelConfig] = [],
-        tokenizer_config: ModelConfig = ModelConfig(model_id="Wan-AI/Wan2.1-T2V-1.3B", origin_file_pattern="google/*"),
+        tokenizer_config: ModelConfig = ModelConfig(model_id="Wan-AI/Wan2.1-T2V-1.3B", origin_file_pattern="google/*", skip_download=True),
         redirect_common_files: bool = True, use_usp=False,
         padding_width=16, window_length=8, cube_map_size=512, 
         active_faces=None, fuse_vae_embedding_in_latents=False, use_vanilla_pos_embs=False, dit_checkpoint_path=None,
