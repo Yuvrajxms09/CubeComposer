@@ -53,22 +53,34 @@ class WanVideoUnit_NoiseInitializer_LatentMode(PipelineUnit):
         return {"noise": noise}
 
 
-def get_model_configs(model_paths=None, model_id_with_origin_paths=None, local_model_path=None):
+def get_model_configs(model_paths=None, model_id_with_origin_paths=None, local_model_path=None, skip_download=False):
+    """
+    Get model configs for pipeline initialization.
+    
+    Args:
+        model_paths: JSON string of local model paths
+        model_id_with_origin_paths: Comma-separated model IDs with origin file patterns
+        local_model_path: Local path to store models
+        skip_download: If True, skip auto-downloading models (for Colab manual downloads)
+    """
     model_configs = []
     if model_paths is not None:
         model_paths = json.loads(model_paths)
         model_configs += [ModelConfig(
             path=path,
-            local_model_path=local_model_path
+            local_model_path=local_model_path,
+            skip_download=skip_download
         ) for path in model_paths]
     if model_id_with_origin_paths is not None:
         model_id_with_origin_paths = model_id_with_origin_paths.split(",")
         model_configs += [
             ModelConfig(model_id=i.split(":")[0], origin_file_pattern=i.split(":")[1],
-            local_model_path=local_model_path) for i in model_id_with_origin_paths]
+            local_model_path=local_model_path, skip_download=skip_download) for i in model_id_with_origin_paths]
     for model_config in model_configs:
         model_config.local_model_path = local_model_path
-        print(f"Settings model_config (model_id: {model_config.model_id}) local_model_path: {model_config.local_model_path}")
+        if skip_download:
+            model_config.skip_download = True
+        print(f"Settings model_config (model_id: {model_config.model_id}) local_model_path: {model_config.local_model_path}, skip_download: {getattr(model_config, 'skip_download', False)}")
     return model_configs
 
 def model_fn_panorama_video(**kwargs):

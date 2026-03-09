@@ -3,6 +3,7 @@ import torch
 import os
 import json
 import argparse
+import glob
 from pathlib import Path
 import numpy as np
 from torch.utils.data import DataLoader
@@ -83,14 +84,22 @@ def resolve_args_and_checkpoint(
     args_json: str | None,
     checkpoint_path: str | None,
     test_mode: str,
+    auto_download: bool = False,
 ):
     """
     Resolve args.json path and checkpoint path for testing.
 
     Priority:
       1. If both args_json and checkpoint_path are provided and exist locally, use them.
-      2. Otherwise, automatically download the appropriate variant from HF based on test_mode.
-         If test_mode is invalid, fall back to 3k (cubecomposer-3k).
+      2. Try to find them in common cache locations (HuggingFace cache).
+      3. If auto_download=True, automatically download from HF (disabled by default for Colab).
+      4. Otherwise, raise an error with helpful message.
+
+    Args:
+        args_json: Path to args.json file
+        checkpoint_path: Path to checkpoint file
+        test_mode: Test mode ('2k', '3k', '4k')
+        auto_download: If True, auto-download from HF. Default False.
     """
     local_args_ok = args_json is not None and os.path.exists(args_json)
     local_ckpt_ok = checkpoint_path is not None and os.path.exists(checkpoint_path)
@@ -99,13 +108,68 @@ def resolve_args_and_checkpoint(
         print("Using locally provided args.json and checkpoint.")
         return args_json, checkpoint_path
 
-    if args_json and not local_args_ok:
-        print(f"[WARN] Provided args_json does not exist: {args_json}")
-    if checkpoint_path and not local_ckpt_ok:
-        print(f"[WARN] Provided checkpoint_path does not exist: {checkpoint_path}")
-
-    print("Falling back to Hugging Face weights (defaulting to 3k if test_mode is invalid).")
-    return _download_variant_from_hf(test_mode)
+    # Try to find in HuggingFace cache
+    if not local_args_ok or not local_ckpt_ok:
+        mode = test_mode or DEFAULT_TEST_MODE
+        if mode not in VARIANT_TO_SUBDIR:
+            mode = DEFAULT_TEST_MODE
+        subdir = VARIANT_TO_SUBDIR[mode]
+        
+        # Common cache locations
+        cache_locations = [
+            "/content/hf_cache",
+            "./hf_models_cache",
+            os.path.expanduser("~/.cache/huggingface/hub"),
+        ]
+        
+        for cache_dir in cache_locations:
+            if os.path.exists(cache_dir):
+                # Look for the model in cache
+                # HuggingFace cache structure: cache_dir/models--org--repo/snapshots/hash/subdir/
+                pattern = os.path.join(cache_dir, "**", HF_REPO_ID.replace("/", "--"), "**", subdir)
+                matches = glob.glob(pattern, recursive=True)
+                
+                if matches:
+                    cache_path = matches[0]
+                    found_args = os.path.join(cache_path, "args.json")
+                    found_ckpt = os.path.join(cache_path, "model.safetensors")
+                    
+                    if os.path.exists(found_args) and os.path.exists(found_ckpt):
+                        print(f"Found checkpoint in cache: {cache_path}")
+                        if not local_args_ok:
+                            args_json = found_args
+                            local_args_ok = True
+                        if not local_ckpt_ok:
+                            checkpoint_path = found_ckpt
+                            local_ckpt_ok = True
+                        
+                        if local_args_ok and local_ckpt_ok:
+                            return args_json, checkpoint_path
+        
+        # If still not found, check if auto_download is enabled
+        if auto_download:
+            print("Falling back to Hugging Face weights (defaulting to 3k if test_mode is invalid).")
+            return _download_variant_from_hf(test_mode)
+        else:
+            # Raise error with helpful message
+            error_msg = "\n" + "="*80 + "\n"
+            error_msg += "ERROR: Checkpoint and/or args.json not found!\n"
+            error_msg += "="*80 + "\n"
+            if not local_args_ok:
+                error_msg += f"  args_json not found: {args_json or '(not provided)'}\n"
+            if not local_ckpt_ok:
+                error_msg += f"  checkpoint_path not found: {checkpoint_path or '(not provided)'}\n"
+            error_msg += "\nTo fix this:\n"
+            error_msg += "  1. Download models manually using HuggingFace Hub:\n"
+            error_msg += f"     from huggingface_hub import snapshot_download\n"
+            error_msg += f"     snapshot_download('{HF_REPO_ID}', allow_patterns=['{subdir}/*'], cache_dir='/content/hf_cache')\n"
+            error_msg += "\n  2. Or provide explicit paths:\n"
+            error_msg += f"     --args_json /path/to/{subdir}/args.json\n"
+            error_msg += f"     --checkpoint_path /path/to/{subdir}/model.safetensors\n"
+            error_msg += "\n  3. Or enable auto-download (not recommended for Colab):\n"
+            error_msg += "     Set auto_download=True in resolve_args_and_checkpoint()\n"
+            error_msg += "="*80 + "\n"
+            raise FileNotFoundError(error_msg)
 
 
 def create_test_dataset(args, num_samples=None, sample_indices=None, start_idx=0):
@@ -160,10 +224,14 @@ def create_pipeline_from_args(args, checkpoint_path=None):
         checkpoint_path: Path to model checkpoint
     """
     
+    # Check if auto-downloads should be disabled (for Colab manual downloads)
+    skip_download = os.getenv('CUBECOMPOSER_SKIP_DOWNLOAD', 'false').lower() == 'true'
+    
     # Get model configs, optionally using local base_model_path for offline loading
     model_configs = get_model_configs(
         model_id_with_origin_paths=args.model_id_with_origin_paths,
         local_model_path=getattr(args, 'base_model_path', None),
+        skip_download=skip_download,
     )
     
     fragment_future_context = getattr(args, 'fragment_future_context', None)
