@@ -195,6 +195,7 @@ class ModelConfig:
             if self.local_model_path is None:
                 self.local_model_path = "./models"
             if not skip_download:
+                print(f"[DOWNLOAD] Downloading {self.model_id} with pattern '{self.origin_file_pattern}'...")
                 downloaded_files = glob.glob(self.origin_file_pattern, root_dir=os.path.join(self.local_model_path, self.model_id))
                 snapshot_download(
                     self.model_id,
@@ -203,6 +204,9 @@ class ModelConfig:
                     ignore_file_pattern=downloaded_files,
                     local_files_only=False
                 )
+            else:
+                # Downloads are disabled - will only use local files
+                print(f"[SKIP DOWNLOAD] Downloads disabled for {self.model_id}. Looking for local files at {os.path.join(self.local_model_path, self.model_id)}...")
             
             # Let rank 1, 2, ... wait for rank 0
             if use_usp:
@@ -216,6 +220,25 @@ class ModelConfig:
                 self.path = glob.glob(os.path.join(self.local_model_path, self.model_id, self.origin_file_pattern))
             if isinstance(self.path, list) and len(self.path) == 1:
                 self.path = self.path[0]
+            
+            # If skip_download=True, verify that the path exists
+            if skip_download:
+                if isinstance(self.path, list):
+                    if len(self.path) == 0 or not all(os.path.exists(p) for p in self.path):
+                        raise FileNotFoundError(
+                            f"Model files not found at {os.path.join(self.local_model_path, self.model_id)} "
+                            f"with pattern '{self.origin_file_pattern}'. Downloads are disabled. "
+                            f"Please download the model manually or provide the correct path via ModelConfig(path='...')."
+                        )
+                    else:
+                        print(f"[SKIP DOWNLOAD] ✓ Found {len(self.path)} local file(s) for {self.model_id}")
+                elif not os.path.exists(self.path):
+                    raise FileNotFoundError(
+                        f"Model file not found at {self.path}. Downloads are disabled. "
+                        f"Please download the model manually or provide the correct path via ModelConfig(path='...')."
+                    )
+                else:
+                    print(f"[SKIP DOWNLOAD] ✓ Found local file: {self.path}")
 
 
 

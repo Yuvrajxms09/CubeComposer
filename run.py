@@ -224,12 +224,20 @@ def create_pipeline_from_args(args, checkpoint_path=None):
         checkpoint_path: Path to model checkpoint
     """
     
-    # Downloads are disabled by default. 
+    # Downloads are disabled by default.
     # Set CUBECOMPOSER_ENABLE_DOWNLOAD='true' to enable downloads.
-    # Legacy: CUBECOMPOSER_SKIP_DOWNLOAD='false' also enables downloads (for backward compatibility).
-    enable_download = os.getenv('CUBECOMPOSER_ENABLE_DOWNLOAD', '').lower() == 'true'
-    legacy_skip = os.getenv('CUBECOMPOSER_SKIP_DOWNLOAD', '').lower() == 'false'
-    skip_download = not (enable_download or legacy_skip)
+    # Legacy: CUBECOMPOSER_SKIP_DOWNLOAD='true' disables downloads, 'false' enables them.
+    enable_download_env = os.getenv('CUBECOMPOSER_ENABLE_DOWNLOAD', '').lower()
+    skip_download_env = os.getenv('CUBECOMPOSER_SKIP_DOWNLOAD', '').lower()
+    
+    if enable_download_env == 'true':
+        skip_download = False  # Enable downloads
+    elif skip_download_env == 'false':
+        skip_download = False  # Legacy: enable downloads
+    elif skip_download_env == 'true':
+        skip_download = True   # Legacy: disable downloads
+    else:
+        skip_download = True   # Default: disable downloads
     
     # Get model configs, optionally using local base_model_path for offline loading
     model_configs = get_model_configs(

@@ -41,6 +41,19 @@ class HuggingfaceTokenizer:
         self.seq_len = seq_len
         self.clean = clean
 
+        # Check if downloads are disabled
+        import os
+        enable_download_env = os.getenv('CUBECOMPOSER_ENABLE_DOWNLOAD', '').lower()
+        skip_download_env = os.getenv('CUBECOMPOSER_SKIP_DOWNLOAD', '').lower()
+        downloads_disabled = (
+            enable_download_env != 'true' and 
+            (skip_download_env == 'true' or skip_download_env == '')
+        )
+        
+        # If downloads are disabled, use local files only
+        if downloads_disabled and 'local_files_only' not in kwargs:
+            kwargs['local_files_only'] = True
+
         # init tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(name, **kwargs)
         self.vocab_size = self.tokenizer.vocab_size
