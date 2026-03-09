@@ -293,19 +293,33 @@ class WanVideoPipeline(BasePipeline):
         redirect_common_files: bool = True,
         use_usp=False,
     ):
-        # Redirect model path
+        # Redirect model path (only if file doesn't exist in original location)
         if redirect_common_files:
             redirect_dict = {
                 "models_t5_umt5-xxl-enc-bf16.pth": "Wan-AI/Wan2.1-T2V-1.3B",
                 "Wan2.1_VAE.pth": "Wan-AI/Wan2.1-T2V-1.3B",
+                "Wan2.2_VAE.pth": "Wan-AI/Wan2.1-T2V-1.3B",  # Also handle Wan2.2 VAE
                 "models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth": "Wan-AI/Wan2.1-I2V-14B-480P",
             }
             for model_config in model_configs:
                 if model_config.origin_file_pattern is None or model_config.model_id is None:
                     continue
                 if model_config.origin_file_pattern in redirect_dict and model_config.model_id != redirect_dict[model_config.origin_file_pattern]:
-                    print(f"To avoid repeatedly downloading model files, ({model_config.model_id}, {model_config.origin_file_pattern}) is redirected to ({redirect_dict[model_config.origin_file_pattern]}, {model_config.origin_file_pattern}). You can use `redirect_common_files=False` to disable file redirection.")
-                    model_config.model_id = redirect_dict[model_config.origin_file_pattern]
+                    # Check if file exists in original location first
+                    original_path = os.path.join(model_config.local_model_path or "./models", model_config.model_id, model_config.origin_file_pattern)
+                    original_exists = os.path.exists(original_path) if not '*' in model_config.origin_file_pattern else len(glob.glob(original_path)) > 0
+                    
+                    if not original_exists:
+                        # Only redirect if file doesn't exist in original location
+                        redirect_model_id = redirect_dict[model_config.origin_file_pattern]
+                        redirect_path = os.path.join(model_config.local_model_path or "./models", redirect_model_id, model_config.origin_file_pattern)
+                        redirect_exists = os.path.exists(redirect_path) if not '*' in model_config.origin_file_pattern else len(glob.glob(redirect_path)) > 0
+                        
+                        if redirect_exists:
+                            print(f"To avoid repeatedly downloading model files, ({model_config.model_id}, {model_config.origin_file_pattern}) is redirected to ({redirect_model_id}, {model_config.origin_file_pattern}). You can use `redirect_common_files=False` to disable file redirection.")
+                            model_config.model_id = redirect_model_id
+                        # If neither exists, keep original model_id (will fail later with proper error)
+                    # If original exists, keep original model_id
         
         # Initialize pipeline
         pipe = WanVideoPipeline(device=device, torch_dtype=torch_dtype)
